@@ -113,7 +113,7 @@ BOARD_MTP_DEVICE := "/dev/mtp"
 # Connectivity - Wi-Fi
 USES_TI_MAC80211 := true
 ifdef USES_TI_MAC80211
-WPA_SUPPLICANT_VERSION           := VER_0_8_X_TI
+WPA_SUPPLICANT_VERSION           := VER_0_8_X
 BOARD_WPA_SUPPLICANT_DRIVER      := NL80211
 BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_wl12xx
 BOARD_HOSTAPD_DRIVER             := NL80211
@@ -133,7 +133,7 @@ BOARD_USES_ALSA_AUDIO := true
 BUILD_WITH_ALSA_UTILS := true
 TARGET_PROVIDES_LIBAUDIO := true
 BOARD_USE_MOTO_DOCK_HACK := true
-COMMON_GLOBAL_CFLAGS += -DMR0_AUDIO_BLOB
+COMMON_GLOBAL_CFLAGS += -DMR0_AUDIO_BLOB -DNEEDS_VECTORIMPL_SYMBOLS
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true
@@ -168,6 +168,7 @@ TW_MAX_BRIGHTNESS := 254
 BOARD_EGL_CFG := device/motorola/omap4-common/prebuilt/etc/egl.cfg
 USE_OPENGL_RENDERER := true
 BOARD_USE_CUSTOM_LIBION := true
+TARGET_RUNNING_WITHOUT_SYNC_FRAMEWORK := true
 
 # Makefile variable and C/C++ macro to recognise DOMX version
 ifdef BOARD_USE_TI_ENHANCED_DOMX
@@ -216,6 +217,7 @@ endif
 # OTA Packaging
 TARGET_PROVIDES_RELEASETOOLS := true
 TARGET_RELEASETOOL_OTA_FROM_TARGET_SCRIPT := device/motorola/omap4-common/releasetools/common_ota_from_target_files
+SKIP_SET_METADATA := true
 
 # Bootanimation
 TARGET_BOOTANIMATION_PRELOAD := true
