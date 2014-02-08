@@ -20,9 +20,6 @@
 # definition file).
 #
 
-#Testing
-TARGET_TELEPHONY_VARIANT := legacy
-
 # set to allow building from common
 BOARD_VENDOR := motorola-omap4
 
