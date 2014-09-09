@@ -2198,10 +2198,22 @@ status_t BaseCameraAdapter::setState(CameraCommands operation)
                     mNextState = PREVIEW_STATE;
                     break;
 
+                case CAMERA_START_IMAGE_CAPTURE:
+                    CAMHAL_LOGDB("Adapter state switch AF_STATE->CAPTURE_STATE event = 0x%x",
+                                 operation);
+                    mNextState = CAPTURE_STATE;
+                    break;
+
                 case CAMERA_START_SMOOTH_ZOOM:
                     CAMHAL_LOGDB("Adapter state switch AF_STATE->AF_ZOOM_STATE event = %s",
                             printState);
                     mNextState = AF_ZOOM_STATE;
+                    break;
+
+                case CAMERA_START_VIDEO:
+                    CAMHAL_LOGDB("Adapter state switch AF_STATE->VIDEO_STATE event = %s",
+                            printState);
+                    mNextState = VIDEO_STATE;
                     break;
 
                 default:
@@ -2307,6 +2319,19 @@ status_t BaseCameraAdapter::setState(CameraCommands operation)
                     CAMHAL_LOGDB("Adapter state switch VIDEO_AF_STATE->VIDEO_STATE event = %s",
                             printState);
                     mNextState = VIDEO_STATE;
+                    break;
+
+                case CAMERA_USE_BUFFERS_IMAGE_CAPTURE:
+                    CAMHAL_LOGDB("Adapter state switch VIDEO_AF_STATE->VIDEO_LOADED_CAPTURE_STATE event = %s",
+                            printState);
+                    mNextState = VIDEO_LOADED_CAPTURE_STATE;
+                    break;
+
+                //This event doesn't change the current state
+                case CAMERA_QUERY_BUFFER_SIZE_IMAGE_CAPTURE:
+                    CAMHAL_LOGDB("Adapter state switch VIDEO_AF_STATE->VIDEO_AF_STATE event = %s",
+                            printState);
+                    mNextState = VIDEO_AF_STATE;
                     break;
 
                 default:
