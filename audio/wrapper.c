@@ -29,6 +29,8 @@
 #include <system/audio.h>
 #include <hardware/audio.h>
 
+#include "wrapper.h"
+
 /* Input */
 struct wrapper_in_stream {
     struct audio_stream_in *stream_in;
@@ -50,7 +52,7 @@ static int n_out_streams = 0;
 static pthread_mutex_t out_streams_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* HAL */
-static struct audio_hw_device *copy_hw_dev = NULL;
+static struct jb_audio_hw_device *jb_hw_dev = NULL;
 static void *dso_handle = NULL;
 static int in_use = 0;
 static pthread_mutex_t in_use_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -112,14 +114,13 @@ static void *ics_dso_handle = NULL;
     static int wrapper_ ## name  prototype \
     { \
         int ret; \
-        int i; \
     \
         ALOGI log; \
         pthread_mutex_lock(&out_streams_mutex); \
         pthread_mutex_lock(&in_streams_mutex); \
     \
         WAIT_FOR_FREE(); \
-        ret = copy_hw_dev->function parameters; \
+        ret = jb_hw_dev->function parameters; \
         UNLOCK_FREE(); \
     \
         pthread_mutex_unlock(&in_streams_mutex); \
@@ -130,6 +131,21 @@ static void *ics_dso_handle = NULL;
 
 #define WRAP_HAL_LOCKED(name, prototype, parameters, log) \
         _WRAP_HAL_LOCKED(name, name, prototype, parameters, log)
+
+#define _WRAP_HAL(name, function, rettype, prototype, parameters, log) \
+    static rettype wrapper_ ## name  prototype \
+    { \
+        ALOGI log; \
+    \
+        return jb_hw_dev->function parameters; \
+    }
+
+#define WRAP_HAL(name, rettype, prototype, parameters, log) \
+        _WRAP_HAL(name, name, rettype, prototype, parameters, log)
+
+/* Unused parameters */
+#define unused_audio_hw_device	__attribute__((unused)) struct audio_hw_device
+
 /*
  * When Motorola's HAL is internally resampling and downmixing a
  * signal it does not return the real number of bytes written
@@ -201,7 +217,7 @@ WRAP_STREAM_LOCKED_COMMON(standby, in, (struct audio_stream *stream),
 WRAP_STREAM_LOCKED_COMMON(set_parameters, in, (struct audio_stream *stream, const char *kv_pairs),
             (stream, kv_pairs), ("in_set_parameters: %s", kv_pairs))
 
-static void wrapper_close_input_stream(struct audio_hw_device *dev,
+static void wrapper_close_input_stream(unused_audio_hw_device *dev,
                                        struct audio_stream_in *stream_in)
 {
     int i;
@@ -221,24 +237,37 @@ static void wrapper_close_input_stream(struct audio_hw_device *dev,
         }
     }
     WAIT_FOR_FREE();
-    copy_hw_dev->close_input_stream(dev, stream_in);
+    jb_hw_dev->close_input_stream(jb_hw_dev, stream_in);
     UNLOCK_FREE();
 
     pthread_mutex_unlock(&in_streams_mutex);
 }
 
-static int wrapper_open_input_stream(struct audio_hw_device *dev,
+static int wrapper_open_input_stream(unused_audio_hw_device *dev,
                                      audio_io_handle_t handle,
                                      audio_devices_t devices,
                                      struct audio_config *config,
-                                     struct audio_stream_in **stream_in)
+                                     struct audio_stream_in **stream_in,
+				     __attribute__((unused)) audio_input_flags_t flags,
+				     __attribute__((unused)) const char *address,
+				     __attribute__((unused)) audio_source_t source)
 {
     int ret;
 
     pthread_mutex_lock(&in_streams_mutex);
 
+    /* Convert to JB_MR0 devices */
+    if (devices & 0x80000000) {
+	devices &= ~0x80000000;
+	if (devices < 0x2000) {
+		devices *= 0x10000;
+	} else {
+		devices |= 0x10000;
+	}
+    }
+
     WAIT_FOR_FREE();
-    ret = copy_hw_dev->open_input_stream(dev, handle, devices,
+    ret = jb_hw_dev->open_input_stream(jb_hw_dev, handle, devices,
                                          config, stream_in);
     UNLOCK_FREE();
 
@@ -326,7 +355,7 @@ WRAP_STREAM_LOCKED_COMMON(standby, out, (struct audio_stream *stream),
 WRAP_STREAM_LOCKED_COMMON(set_parameters, out, (struct audio_stream *stream, const char *kv_pairs),
             (stream, kv_pairs), ("out_set_parameters: %s", kv_pairs))
 
-void wrapper_close_output_stream(struct audio_hw_device *dev,
+static void wrapper_close_output_stream(unused_audio_hw_device *dev,
                             struct audio_stream_out* stream_out)
 {
     int i;
@@ -347,25 +376,26 @@ void wrapper_close_output_stream(struct audio_hw_device *dev,
     }
 
     WAIT_FOR_FREE();
-    copy_hw_dev->close_output_stream(dev, stream_out);
+    jb_hw_dev->close_output_stream(jb_hw_dev, stream_out);
     UNLOCK_FREE();
 
     pthread_mutex_unlock(&out_streams_mutex);
 }
 
-static int wrapper_open_output_stream(struct audio_hw_device *dev,
+static int wrapper_open_output_stream(unused_audio_hw_device *dev,
                                       audio_io_handle_t handle,
                                       audio_devices_t devices,
                                       audio_output_flags_t flags,
                                       struct audio_config *config,
-                                      struct audio_stream_out **stream_out)
+                                      struct audio_stream_out **stream_out,
+				      __attribute__((unused)) const char *address)
 {
     int ret;
 
     pthread_mutex_lock(&out_streams_mutex);
 
     WAIT_FOR_FREE();
-    ret = copy_hw_dev->open_output_stream(dev, handle, devices,
+    ret = jb_hw_dev->open_output_stream(jb_hw_dev, handle, devices,
                                           flags, config, stream_out);
     UNLOCK_FREE();
 
@@ -409,14 +439,14 @@ static int wrapper_open_output_stream(struct audio_hw_device *dev,
 
 /* Generic HAL */
 
-WRAP_HAL_LOCKED(set_master_volume, (struct audio_hw_device *dev, float volume),
-                (dev, volume), ("set_master_volume: %f", volume))
+WRAP_HAL_LOCKED(set_master_volume, (unused_audio_hw_device *dev, float volume),
+                (jb_hw_dev, volume), ("set_master_volume: %f", volume))
 
 #ifndef ICS_VOICE_BLOB
-WRAP_HAL_LOCKED(set_voice_volume, (struct audio_hw_device *dev, float volume),
-                (dev, volume), ("set_voice_volume: %f", volume))
+WRAP_HAL_LOCKED(set_voice_volume, (unused_audio_hw_device *dev, float volume),
+                (jb_hw_dev, volume), ("set_voice_volume: %f", volume))
 #else
-static int wrapper_set_voice_volume(struct audio_hw_device *dev, float volume)
+static int wrapper_set_voice_volume(unused_audio_hw_device *dev, float volume)
 {
     ALOGI("ICS: set_voice_volume: %f", volume);
 
@@ -425,17 +455,38 @@ static int wrapper_set_voice_volume(struct audio_hw_device *dev, float volume)
 #endif
 
 
-WRAP_HAL_LOCKED(set_mic_mute, (struct audio_hw_device *dev, bool state),
-                (dev, state), ("set_mic_mute: %d", state))
+WRAP_HAL_LOCKED(set_mic_mute, (unused_audio_hw_device *dev, bool state),
+                (jb_hw_dev, state), ("set_mic_mute: %d", state))
 
-WRAP_HAL_LOCKED(set_mode, (struct audio_hw_device *dev, audio_mode_t mode),
-                (dev, mode), ("set_mode: %d", mode))
+WRAP_HAL_LOCKED(set_mode, (unused_audio_hw_device *dev, audio_mode_t mode),
+                (jb_hw_dev, mode), ("set_mode: %d", mode))
 
-WRAP_HAL_LOCKED(set_parameters, (struct audio_hw_device *dev, const char *kv_pairs),
-                (dev, kv_pairs), ("set_parameters: %s", kv_pairs))
+WRAP_HAL_LOCKED(set_parameters, (unused_audio_hw_device *dev, const char *kv_pairs),
+                (jb_hw_dev, kv_pairs), ("set_parameters: %s", kv_pairs))
+
+WRAP_HAL(get_supported_devices, uint32_t, (const unused_audio_hw_device *dev),
+		(jb_hw_dev), ("get_supported_devices"))
+
+WRAP_HAL(init_check, int, (const unused_audio_hw_device *dev),
+		(jb_hw_dev), ("init_check"))
+
+WRAP_HAL(get_master_volume, int, (unused_audio_hw_device *dev, float *volume),
+		(jb_hw_dev, volume), ("get_master_volume"))
+
+WRAP_HAL(get_mic_mute, int, (const unused_audio_hw_device *dev, bool *state),
+		(jb_hw_dev, state), ("get_mic_mute"))
+
+WRAP_HAL(get_parameters, char*, (const unused_audio_hw_device *dev, const char *keys),
+		(jb_hw_dev, keys), ("get_parameters: %s", keys))
+
+WRAP_HAL(get_input_buffer_size, size_t, (const unused_audio_hw_device *dev, const struct audio_config *config),
+		(jb_hw_dev, config), ("get_input_buffer_size"))
+
+WRAP_HAL(dump, int, (const unused_audio_hw_device *dev, int fd),
+		(jb_hw_dev, fd), ("dump"))
 
 #ifdef ICS_VOICE_BLOB
-static int wrapper_set_mode_ics(struct audio_hw_device *dev, audio_mode_t mode)
+static int wrapper_set_mode_ics(unused_audio_hw_device *dev, audio_mode_t mode)
 {
     ALOGI("ICS: set_mode: %d", mode);
 
@@ -444,7 +495,7 @@ static int wrapper_set_mode_ics(struct audio_hw_device *dev, audio_mode_t mode)
     return wrapper_set_mode(dev, mode);
 }
 
-static int wrapper_set_parameters_ics(struct audio_hw_device *dev, const char *kv_pairs)
+static int wrapper_set_parameters_ics(unused_audio_hw_device *dev, const char *kv_pairs)
 {
     ALOGI("ICS: set_parameters: %s", kv_pairs);
 
@@ -463,12 +514,12 @@ static int wrapper_close(hw_device_t *device)
 
     WAIT_FOR_FREE();
 
-    ret = copy_hw_dev->common.close(device);
+    ret = jb_hw_dev->common.close(device);
 
     dlclose(dso_handle);
     dso_handle = NULL;
-    free(copy_hw_dev);
-    copy_hw_dev = NULL;
+    free(jb_hw_dev);
+    jb_hw_dev = NULL;
 
     if (out_streams) {
         free(out_streams);
@@ -505,7 +556,7 @@ static int wrapper_open(const hw_module_t* module,
     int ret;
 
     ALOGI("Initializing wrapper for Motorola's audio-HAL");
-    if (copy_hw_dev) {
+    if (jb_hw_dev) {
         ALOGE("Audio HAL already opened!");
         return -ENODEV;
     }
@@ -528,7 +579,7 @@ static int wrapper_open(const hw_module_t* module,
 
     hmi->dso = dso_handle;
 
-    ret = audio_hw_device_open(hmi, &adev);
+    ret = audio_hw_device_open(hmi, (struct audio_hw_device**)&jb_hw_dev);
     ALOGE_IF(ret, "%s couldn't open audio module in %s. (%s)", __func__,
                  AUDIO_HARDWARE_MODULE_ID, strerror(-ret));
     if (ret) {
@@ -536,8 +587,6 @@ static int wrapper_open(const hw_module_t* module,
         dso_handle = NULL;
         return ret;
     }
-
-    *device = (hw_device_t*)adev;
 
 #ifdef ICS_VOICE_BLOB
     ALOGI("Loading ICS blob for voice-volume");
@@ -569,20 +618,37 @@ static int wrapper_open(const hw_module_t* module,
     }
 #endif
 
-    copy_hw_dev = malloc(sizeof(struct audio_hw_device));
-    if (!copy_hw_dev) {
-        ALOGE("Can't allocate memory for copy_hw_dev, continuing unwrapped...");
-        return 0;
+    *device = malloc(sizeof(struct audio_hw_device));
+    if (!*device) {
+        ALOGE("Can't allocate memory for device, aborting...");
+        dlclose(dso_handle);
+        dso_handle = NULL;
+#ifdef ICS_VOICE_BLOB
+        dlclose(ics_dso_handle);
+        ics_dso_handle = NULL;
+#endif
+        return -ENOMEM;
     }
 
-    memcpy(copy_hw_dev, *device, sizeof(struct audio_hw_device));
+    memset(*device, 0, sizeof(struct audio_hw_device));
+
+    adev = (struct audio_hw_device*)*device;
 
     /* HAL */
+    adev->common.tag = HARDWARE_DEVICE_TAG;
+    adev->common.version = AUDIO_DEVICE_API_VERSION_MIN;
+    adev->common.module = jb_hw_dev->common.module;
     adev->common.close = wrapper_close;
-    adev->set_master_volume = wrapper_set_master_volume;
+
+    adev->get_supported_devices = wrapper_get_supported_devices;
+    adev->init_check = wrapper_init_check;
     adev->set_voice_volume = wrapper_set_voice_volume;
+    adev->set_master_volume = wrapper_set_master_volume;
+    adev->get_master_volume = wrapper_get_master_volume;
     adev->set_mic_mute = wrapper_set_mic_mute;
-    /* set_master_mute not supported by MR0_AUDIO_BLOB */
+    adev->get_mic_mute = wrapper_get_mic_mute;
+    adev->get_parameters = wrapper_get_parameters;
+    adev->get_input_buffer_size = wrapper_get_input_buffer_size;
 #ifdef ICS_VOICE_BLOB
     adev->set_mode = wrapper_set_mode_ics;
     adev->set_parameters = wrapper_set_parameters_ics;
@@ -598,6 +664,14 @@ static int wrapper_open(const hw_module_t* module,
     /* Input */
     adev->open_input_stream = wrapper_open_input_stream;
     adev->close_input_stream = wrapper_close_input_stream;
+
+    adev->dump = wrapper_dump;
+    adev->set_master_mute = NULL;
+    adev->get_master_mute = NULL;
+    adev->create_audio_patch = NULL;
+    adev->release_audio_patch = NULL;
+    adev->get_audio_port = NULL;
+    adev->set_audio_port_config = NULL;
 
     return 0;
 }

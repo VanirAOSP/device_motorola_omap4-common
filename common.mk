@@ -29,7 +29,8 @@ PRODUCT_COPY_FILES += \
     $(COMMON_FOLDER)/prebuilt/bin/wificalcheck.sh:system/bin/wificalcheck.sh \
     $(COMMON_FOLDER)/prebuilt/etc/gps.conf:system/etc/gps.conf \
     $(COMMON_FOLDER)/prebuilt/etc/wifi/wlan_fem.ini:system/etc/wifi/wlan_fem.ini \
-    $(COMMON_FOLDER)/prebuilt/etc/wifi/p2p_supplicant_overlay.conf:system/etc/wifi/p2p_supplicant_overlay.conf
+    $(COMMON_FOLDER)/prebuilt/etc/wifi/p2p_supplicant_overlay.conf:system/etc/wifi/p2p_supplicant_overlay.conf \
+    $(COMMON_FOLDER)/prebuilt/usr/keylayout/cpcap-key.kl:system/usr/keylayout/cpcap-key.kl
 
 # Device overlay
 DEVICE_PACKAGE_OVERLAYS += $(COMMON_FOLDER)/overlay
@@ -79,13 +80,18 @@ PRODUCT_PACKAGES += \
     dhcpcd.conf \
     hostapd.conf \
     wifical.sh \
+    wl1271-nvs.bin \
     wpa_supplicant.conf \
     TQS_D_1.7.ini \
     TQS_D_1.7_127x.ini \
     crda \
     regulatory.bin \
     calibrator \
-    busybox
+    busybox \
+    libwpa_client \
+    hostapd \
+    wpa_supplicant
+
 
 # Wifi Direct and WPAN
 PRODUCT_PACKAGES += \
@@ -96,6 +102,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     uim-sysfs \
     libbt-vendor
+
+# Sensors
+PRODUCT_PACKAGES += \
+    ak8975fs
 
 # Misc
 PRODUCT_PACKAGES += \
@@ -132,7 +142,10 @@ PRODUCT_PACKAGES += \
     tf_daemon \
     libtf_crypto_sst \
     libmm_osal \
-    gralloc.omap4.so
+    gralloc.omap4.so \
+    libcorkscrew \
+    pvrsrvinit \
+    libPVRScopeServices.so
 
 PRODUCT_PACKAGES += \
     evtest \

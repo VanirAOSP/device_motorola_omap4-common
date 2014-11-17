@@ -105,6 +105,7 @@ BOARD_VOLD_MAX_PARTITIONS := 32
 BOARD_VOLD_EMMC_SHARES_DEV_MAJOR := true
 TARGET_USE_CUSTOM_LUN_FILE_PATH := "/sys/devices/virtual/android_usb/android0/f_mass_storage/lun%d/file"
 BOARD_MTP_DEVICE := "/dev/mtp"
+BOARD_SYSTEMIMAGE_PARTITION_SIZE := 734003200
 
 # Connectivity - Wi-Fi
 USES_TI_MAC80211 := true
@@ -121,7 +122,7 @@ WIFI_DRIVER_MODULE_PATH          := "/system/lib/modules/wl12xx_sdio.ko"
 WIFI_DRIVER_MODULE_NAME          := "wl12xx_sdio"
 WIFI_FIRMWARE_LOADER             := ""
 BOARD_WIFI_SKIP_CAPABILITIES     := true
-COMMON_GLOBAL_CFLAGS += -DUSES_TI_MAC80211
+COMMON_GLOBAL_CFLAGS += -DUSES_TI_MAC80211 -DANDROID_P2P_STUB
 endif
 
 # Audio
@@ -146,7 +147,7 @@ ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=1
 ADDITIONAL_DEFAULT_PROPERTIES += ro.allow.mock.location=1
 
 # Recovery
-TARGET_RECOVERY_FSTAB = $(COMMON_FOLDER)/root/fstab.mapphone_cdma
+TARGET_RECOVERY_FSTAB = $(COMMON_FOLDER)/root/recovery.fstab
 RECOVERY_FSTAB_VERSION = 2
 BOARD_HAS_LOCKED_BOOTLOADER := true
 TARGET_PREBUILT_RECOVERY_KERNEL := device/motorola/omap4-common/recovery-kernel
@@ -161,6 +162,7 @@ TARGET_RECOVERY_PRE_COMMAND_CLEAR_REASON := true
 TARGET_RECOVERY_PIXEL_FORMAT := "BGRA_8888"
 DEVICE_RESOLUTION := 540x960
 TW_MAX_BRIGHTNESS := 254
+TARGET_USERIMAGES_USE_EXT4 := true
 
 # Graphics
 BOARD_EGL_CFG := device/motorola/omap4-common/prebuilt/etc/egl.cfg
@@ -172,8 +174,9 @@ TARGET_USES_OPENGLES_FOR_SCREEN_CAPTURE := true
 # Makefile variable and C/C++ macro to recognise DOMX version
 ifdef BOARD_USE_TI_ENHANCED_DOMX
     BOARD_USE_TI_DUCATI_H264_PROFILE := true
-    TI_CUSTOM_DOMX_PATH := device/motorola/omap4-common/domx
+    BOARD_USE_TI_CUSTOM_DOMX := true
     DOMX_PATH := device/motorola/omap4-common/domx
+    TARGET_SPECIFIC_HEADER_PATH += $(COMMON_FOLDER)/domx/omx_core/inc
     ENHANCED_DOMX := true
 else
     DOMX_PATH := hardware/ti/omap4xxx/domx
@@ -211,6 +214,7 @@ COMMON_GLOBAL_CFLAGS += -DBOARD_USE_MOTOROLA_DEV_ALIAS
 endif
 
 # Media / Radio
+COMMON_GLOBAL_CFLAGS += -DQCOM_LEGACY_UIDS
 # Off currently
 
 # OTA Packaging

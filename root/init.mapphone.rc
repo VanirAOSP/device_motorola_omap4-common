@@ -1,3 +1,5 @@
+import /init.target.rc
+
 on init
 
 loglevel 3
@@ -34,6 +36,7 @@ loglevel 3
 on fs
     exec /sbin/fixboot.sh
     mount_all /fstab.mapphone_cdma
+    swapon_all /fstab.mapphone_cdma
     setprop ro.crypto.fuse_sdcard true
 
 on post-fs
@@ -48,7 +51,7 @@ on post-fs
     chmod 0775 /pds
 
     mount ext3 /dev/block/system /system ro noatime nodiratime remount
-    mount rootfs rootfs / rw remount
+    mount rootfs rootfs / ro remount
     symlink /dev/ttyGS0 /dev/acm0
 
 # Create mountpoints and mount tmpfs
@@ -559,7 +562,7 @@ service uim /system/bin/uim-sysfs
     user  root
     group bluetooth net_bt_admin
 # Ecompass daemon
-service akmd8975 /system/bin/akmd8975
+service akmd8975 /system/bin/ak8975fs
     class main
     user compass
     group compass misc input
@@ -615,7 +618,7 @@ service hostapd_bin /system/bin/hostapd -d \
     class main
     disabled
     oneshot
-service pvrsrv /system/vendor/bin/pvrsrvinit
+service pvrsrv /system/bin/pvrsrvinit
     class core
     user root
     group root
@@ -655,6 +658,7 @@ service ftmipcd /system/bin/ftmipcd
     class main
     user radio
     group radio inet
+    disabled
 on property:dev.bootcomplete=1
 #    start loadpreinstalls
     #IKHSS6-3716 allow mediaserver to enable performance mode for OMAP4 USB Audio
